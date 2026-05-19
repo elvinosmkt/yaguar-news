@@ -31,6 +31,15 @@ function makeId(url: string): string {
   }
 }
 
+// GNews truncates content: "texto... [2821 chars]" — remove the marker
+function cleanContent(raw: string): string {
+  return raw.replace(/\.\.\.\s*\[\d+\s*chars?\]$/i, '...').trim();
+}
+
+function delay(ms: number) {
+  return new Promise<void>((r) => setTimeout(r, ms));
+}
+
 export async function fetchCategoryNews(
   category: NewsCategory,
   config: NewsSDKConfig
@@ -53,7 +62,7 @@ export async function fetchCategoryNews(
     id: makeId(a.url),
     title: a.title,
     description: a.description ?? '',
-    content: a.content ?? a.description ?? '',
+    content: cleanContent(a.content ?? a.description ?? ''),
     url: a.url,
     image: a.image,
     publishedAt: a.publishedAt,
@@ -62,12 +71,17 @@ export async function fetchCategoryNews(
   }));
 }
 
+// GNews free tier: 1 request/second — fetch sequentially to avoid rate limit errors
 export async function fetchAllCategories(config: NewsSDKConfig): Promise<ArticlesMap> {
   const categories = config.categories ?? (['geral', 'politica', 'esportes', 'economia', 'tecnologia'] as NewsCategory[]);
-  const results = await Promise.allSettled(categories.map((cat) => fetchCategoryNews(cat, config)));
   const map = emptyArticlesMap();
-  results.forEach((r, i) => {
-    if (r.status === 'fulfilled') map[categories[i]] = r.value;
-  });
+  for (let i = 0; i < categories.length; i++) {
+    try {
+      map[categories[i]] = await fetchCategoryNews(categories[i], config);
+    } catch {
+      map[categories[i]] = [];
+    }
+    if (i < categories.length - 1) await delay(1200);
+  }
   return map;
 }

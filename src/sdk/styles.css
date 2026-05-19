@@ -105,7 +105,19 @@
 }
 .yn-modal__source { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; }
 .yn-modal__date { font-size: 12px; color: #94a3b8; }
-.yn-modal__content { font-size: 15px; line-height: 1.72; color: #334155; margin: 0 0 24px; }
+.yn-modal__lead {
+  font-size: 17px; font-weight: 500; line-height: 1.65;
+  color: #1e293b; margin: 0 0 16px;
+  padding-bottom: 16px; border-bottom: 1px solid #f1f5f9;
+}
+.yn-modal__content { font-size: 15px; line-height: 1.78; color: #334155; margin: 0 0 20px; }
+.yn-modal__source-box {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 20px; font-size: 13px; color: #94a3b8;
+}
+.yn-modal__source-label { font-weight: 600; }
+.yn-modal__source-link { color: #2563eb; text-decoration: none; font-weight: 500; }
+.yn-modal__source-link:hover { text-decoration: underline; }
 .yn-modal__cta {
   display: block; text-align: center; padding: 13px 24px; border-radius: 10px;
   color: #fff; font-size: 14px; font-weight: 700; text-decoration: none;

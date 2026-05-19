@@ -40,11 +40,23 @@ export function NewsModal({ article, onClose }: Props) {
           <span className="yn-modal__date">{fmt(article.publishedAt)}</span>
         </div>
 
-        <p className="yn-modal__content">{article.content}</p>
+        {article.description && (
+          <p className="yn-modal__lead">{article.description}</p>
+        )}
+
+        {article.content && article.content !== article.description && (
+          <p className="yn-modal__content">{article.content}</p>
+        )}
+
+        <div className="yn-modal__source-box">
+          <span className="yn-modal__source-label">Fonte:</span>
+          <a href={article.source.url} target="_blank" rel="noopener noreferrer"
+            className="yn-modal__source-link">{article.source.name}</a>
+        </div>
 
         <a href={article.url} target="_blank" rel="noopener noreferrer"
           className="yn-modal__cta" style={{ background: color }}>
-          Ler matéria completa →
+          Continuar lendo no {article.source.name} →
         </a>
       </div>
     </div>

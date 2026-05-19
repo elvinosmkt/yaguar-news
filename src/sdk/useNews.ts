@@ -3,7 +3,7 @@ import { NewsArticle, NewsCategory, NewsSDKConfig, NewsState, ArticlesMap, empty
 import { fetchAllCategories } from './gnews';
 import { shouldFetchNow, msUntilNext } from './scheduler';
 
-const PREFIX = 'crm_news_v1_';
+const PREFIX = 'crm_news_v2_';
 const CATS: NewsCategory[] = ['geral', 'politica', 'esportes', 'economia', 'tecnologia'];
 
 function readCache(): { articles: ArticlesMap; lastFetch: number | null } {
