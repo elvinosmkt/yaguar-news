@@ -1,77 +1,143 @@
-// Vercel Edge Function — proxy para NewsAPI.org (resolve CORS no browser)
+// Vercel Edge Function — tenta GNews → NewsAPI como fallback
 export const config = { runtime: 'edge' };
 
-const NEWSAPI_MAP: Record<string, string> = {
-  geral: 'general',
-  politica: 'general',
-  esportes: 'sports',
-  economia: 'business',
+const GNEWS_CAT: Record<string, string> = {
+  geral:      'breaking-news',
+  politica:   'nation',
+  esportes:   'sports',
+  economia:   'business',
   tecnologia: 'technology',
 };
 
-interface NewsAPIArticle {
-  source: { name: string };
+const NEWSAPI_CAT: Record<string, string> = {
+  geral:      'general',
+  politica:   'general',
+  esportes:   'sports',
+  economia:   'business',
+  tecnologia: 'technology',
+};
+
+interface Article {
   title: string;
-  description: string | null;
+  description: string;
+  content: string;
   url: string;
-  urlToImage: string | null;
+  image: string | null;
   publishedAt: string;
-  content: string | null;
+  source: { name: string; url: string };
 }
 
-function cleanContent(raw: string | null): string {
+function clean(raw: string | null): string {
   if (!raw) return '';
-  return raw.replace(/\[\+\d+\s*chars?\]/gi, '').replace(/\s{2,}/g, ' ').trim();
+  return raw
+    .replace(/\[\+\d+\s*chars?\]/gi, '')
+    .replace(/\.\.\.\s*\[\d+\s*chars?\]$/i, '...')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+async function tryGNews(category: string, max: number): Promise<Article[]> {
+  const key =
+    process.env.GNEWS_KEY ??
+    process.env.GNEWS_API_KEY ??
+    process.env.VITE_GNEWS_API_KEY;
+  if (!key) throw new Error('GNEWS_KEY não configurada');
+
+  const p = new URLSearchParams({
+    category: GNEWS_CAT[category] ?? 'breaking-news',
+    lang: 'pt',
+    country: 'br',
+    max: String(max),
+    apikey: key,
+  });
+
+  const res = await fetch(`https://gnews.io/api/v4/top-headlines?${p}`, {
+    headers: { 'User-Agent': 'YaguarNews/1.0' },
+  });
+  if (!res.ok) throw new Error(`GNews HTTP ${res.status}`);
+
+  const data = await res.json();
+  const arts: any[] = data.articles ?? [];
+  if (!arts.length) throw new Error('GNews retornou 0 artigos');
+
+  return arts
+    .filter((a) => a.title && a.url)
+    .map((a) => ({
+      title:       a.title,
+      description: a.description ?? '',
+      content:     clean(a.content) || clean(a.description),
+      url:         a.url,
+      image:       a.image ?? null,
+      publishedAt: a.publishedAt ?? new Date().toISOString(),
+      source:      a.source ?? { name: '', url: '' },
+    }));
+}
+
+async function tryNewsAPI(category: string, max: number): Promise<Article[]> {
+  const key = process.env.NEWSAPI_KEY;
+  if (!key) throw new Error('NEWSAPI_KEY não configurada');
+
+  const p = new URLSearchParams({
+    category: NEWSAPI_CAT[category] ?? 'general',
+    country:  'br',
+    pageSize: String(max),
+    apiKey:   key,
+  });
+  if (category === 'politica') {
+    p.set('q', 'política governo eleições congresso');
+  }
+
+  const res = await fetch(`https://newsapi.org/v2/top-headlines?${p}`, {
+    headers: { 'User-Agent': 'YaguarNews/1.0' },
+  });
+  if (!res.ok) throw new Error(`NewsAPI HTTP ${res.status}`);
+
+  const data = await res.json();
+  if (data.status !== 'ok') throw new Error(data.message ?? 'NewsAPI erro');
+
+  const arts: any[] = (data.articles ?? []).filter(
+    (a: any) => a.title && a.title !== '[Removed]' && a.url
+  );
+  if (!arts.length) throw new Error('NewsAPI retornou 0 artigos');
+
+  return arts.map((a) => ({
+    title:       a.title,
+    description: a.description ?? '',
+    content:     clean(a.content) || clean(a.description),
+    url:         a.url,
+    image:       a.urlToImage ?? null,
+    publishedAt: a.publishedAt ?? new Date().toISOString(),
+    source:      { name: a.source?.name ?? '', url: '' },
+  }));
 }
 
 export default async function handler(request: Request): Promise<Response> {
   const { searchParams } = new URL(request.url);
   const category = searchParams.get('category') ?? 'geral';
-  const country  = searchParams.get('country')  ?? 'br';
-  const max      = searchParams.get('max')       ?? '10';
+  const max = Math.min(parseInt(searchParams.get('max') ?? '10', 10), 20);
 
-  const apiKey = process.env.NEWSAPI_KEY;
-  if (!apiKey) {
-    return Response.json({ error: 'NEWSAPI_KEY not configured' }, { status: 500 });
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Cache-Control': 's-maxage=300, stale-while-revalidate=600',
+    'Content-Type': 'application/json',
+  };
+
+  // 1️⃣ Tenta GNews
+  try {
+    const articles = await tryGNews(category, max);
+    return Response.json({ totalArticles: articles.length, articles, source: 'gnews' }, { headers });
+  } catch (e) {
+    console.warn('[YaguarNews] GNews falhou:', String(e));
   }
 
-  const params = new URLSearchParams({
-    category: NEWSAPI_MAP[category] ?? 'general',
-    country,
-    pageSize: max,
-    apiKey,
-  });
-
-  // Política não tem categoria direta na NewsAPI — adiciona keyword
-  if (category === 'politica') {
-    params.set('q', 'política governo eleições congresso');
+  // 2️⃣ Fallback: NewsAPI
+  try {
+    const articles = await tryNewsAPI(category, max);
+    return Response.json({ totalArticles: articles.length, articles, source: 'newsapi' }, { headers });
+  } catch (e) {
+    console.warn('[YaguarNews] NewsAPI falhou:', String(e));
   }
 
-  const upstream = await fetch(
-    `https://newsapi.org/v2/top-headlines?${params}`,
-    { headers: { 'User-Agent': 'YaguarNews/1.0' } }
-  );
-
-  const data = await upstream.json();
-
-  if (!upstream.ok) {
-    return Response.json({ error: data.message ?? 'NewsAPI error' }, { status: upstream.status });
-  }
-
-  const articles = (data.articles ?? [])
-    .filter((a: NewsAPIArticle) => a.title && a.title !== '[Removed]' && a.url)
-    .map((a: NewsAPIArticle) => ({
-      title: a.title,
-      description: a.description ?? '',
-      content: cleanContent(a.content) || cleanContent(a.description),
-      url: a.url,
-      image: a.urlToImage,
-      publishedAt: a.publishedAt,
-      source: { name: a.source.name, url: '' },
-    }));
-
-  return Response.json(
-    { totalArticles: data.totalResults ?? articles.length, articles },
-    { headers: { 'Access-Control-Allow-Origin': '*' } }
-  );
+  // Sem notícias — retorna vazio sem erro HTTP para o cliente tratar
+  return Response.json({ totalArticles: 0, articles: [], source: 'none' }, { headers });
 }

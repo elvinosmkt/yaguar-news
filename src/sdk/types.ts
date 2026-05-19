@@ -44,7 +44,7 @@ export interface NewsState {
 }
 
 export interface NewsSDKConfig {
-  apiKey: string;
+  apiKey?: string;
   language?: string;
   country?: string;
   maxArticlesPerCategory?: number;
