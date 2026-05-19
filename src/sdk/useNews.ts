@@ -85,7 +85,8 @@ export function useNews(config: NewsSDKConfig): UseNewsReturn {
 
   useEffect(() => {
     const { lastFetch } = readCache();
-    if (shouldFetchNow(lastFetch, { hours: scheduleHours })) {
+    // Faz fetch se: não há cache válido (API falhou antes) OU horário agendado passou
+    if (!hasCachedArticles(cached.articles) || shouldFetchNow(lastFetch, { hours: scheduleHours })) {
       fetchNews().then(scheduleNext);
     } else {
       scheduleNext();
