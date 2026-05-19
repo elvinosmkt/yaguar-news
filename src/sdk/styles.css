@@ -1,64 +1,108 @@
-/* Yaguar News — SDK Styles (prefixo .yn-) */
+/* Yaguar News SDK — mobile-first, prefixo .yn- */
 
-/* ── Feed ─────────────────────────────── */
-.yn-feed { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; }
+/* ════════════════════════════════════════════════════
+   BASE / FEED
+   ════════════════════════════════════════════════════ */
+.yn-feed {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1e293b;
+}
 
 .yn-feed__header {
-  display: flex; align-items: flex-start; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   gap: 12px; margin-bottom: 16px;
+  padding: 20px 20px 0;
 }
-.yn-feed__title { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 3px; }
-.yn-feed__updated { font-size: 12px; color: #94a3b8; }
+.yn-feed__title  { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0 0 2px; }
+.yn-feed__updated { font-size: 11px; color: #94a3b8; }
+
 .yn-feed__refresh {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 14px; background: #f1f5f9; border: 1px solid #e2e8f0;
-  border-radius: 8px; font-size: 13px; font-weight: 500; color: #475569;
-  cursor: pointer; white-space: nowrap; transition: background .15s; flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  padding: 0 16px; height: 38px; min-width: 44px;
+  background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 10px;
+  font-size: 13px; font-weight: 600; color: #475569;
+  cursor: pointer; white-space: nowrap; transition: background .12s;
+  touch-action: manipulation; user-select: none;
 }
 .yn-feed__refresh:hover:not(:disabled) { background: #e2e8f0; }
-.yn-feed__refresh:disabled { opacity: .5; cursor: not-allowed; }
+.yn-feed__refresh:active:not(:disabled) { background: #cbd5e1; transform: scale(.97); }
+.yn-feed__refresh:disabled { opacity: .45; cursor: not-allowed; }
 
-/* ── Filter ───────────────────────────── */
+/* ════════════════════════════════════════════════════
+   FILTROS
+   ════════════════════════════════════════════════════ */
 .yn-filter {
-  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
-  margin-bottom: 20px; scrollbar-width: none;
+  display: flex; gap: 8px;
+  overflow-x: auto; padding: 12px 20px 4px;
+  margin-bottom: 16px; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 .yn-filter::-webkit-scrollbar { display: none; }
+
 .yn-filter__btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 14px; border-radius: 20px; border: 1.5px solid;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 0 16px; height: 36px;
+  border-radius: 20px; border: 1.5px solid;
   background: transparent; font-size: 13px; font-weight: 600;
-  cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: opacity .15s;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: opacity .12s, transform .1s;
+  touch-action: manipulation; user-select: none;
 }
-.yn-filter__btn:hover { opacity: .78; }
+.yn-filter__btn:active { transform: scale(.95); opacity: .75; }
+@media (hover: hover) {
+  .yn-filter__btn:hover { opacity: .78; }
+}
 .yn-filter__count {
-  font-size: 11px; font-weight: 700; padding: 1px 7px;
+  font-size: 10px; font-weight: 700; padding: 1px 6px;
   border-radius: 10px; background: rgba(0,0,0,.1);
 }
 .yn-filter__btn--active .yn-filter__count { background: rgba(255,255,255,.25); }
 
-/* ── Grid ─────────────────────────────── */
-.yn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; }
+/* ════════════════════════════════════════════════════
+   GRID — desktop
+   ════════════════════════════════════════════════════ */
+.yn-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 16px;
+  padding: 0 20px;
+}
 
-/* ── Card ─────────────────────────────── */
+/* ════════════════════════════════════════════════════
+   CARD — base (vertical, desktop)
+   ════════════════════════════════════════════════════ */
 .yn-card {
   background: #fff; border: 1px solid #f1f5f9; border-radius: 12px;
   overflow: hidden; cursor: pointer; display: flex; flex-direction: column;
-  box-shadow: 0 2px 8px rgba(0,0,0,.06); transition: transform .18s, box-shadow .18s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  transition: transform .18s, box-shadow .18s;
+  touch-action: manipulation; user-select: none;
 }
-.yn-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,.12); }
-.yn-card:focus { outline: 2px solid #2563eb; outline-offset: 2px; }
+@media (hover: hover) {
+  .yn-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,.12); }
+  .yn-card:hover .yn-card__img { transform: scale(1.04); }
+}
+.yn-card:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.yn-card:active { opacity: .88; }
 
-.yn-card__img-wrap { position: relative; aspect-ratio: 16/9; background: #f8fafc; overflow: hidden; flex-shrink: 0; }
+.yn-card__img-wrap {
+  position: relative; aspect-ratio: 16/9;
+  background: #f8fafc; overflow: hidden; flex-shrink: 0;
+}
 .yn-card__img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s; }
-.yn-card:hover .yn-card__img { transform: scale(1.04); }
-.yn-card__img-ph { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 30px; opacity: .25; }
+.yn-card__img-ph {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; font-size: 30px; opacity: .22;
+}
 .yn-card__badge {
   position: absolute; bottom: 8px; left: 8px; color: #fff;
   font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px;
   text-transform: uppercase; letter-spacing: .6px;
 }
-.yn-card__body { padding: 14px 16px 12px; display: flex; flex-direction: column; flex: 1; gap: 8px; }
+.yn-card__body {
+  padding: 14px 16px 12px; display: flex;
+  flex-direction: column; flex: 1; gap: 6px;
+}
 .yn-card__title {
   font-size: 14px; font-weight: 600; color: #0f172a; margin: 0; line-height: 1.45;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -72,26 +116,41 @@
   padding-top: 8px; border-top: 1px solid #f1f5f9; margin-top: auto;
 }
 .yn-card__source { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .4px; }
-.yn-card__time { font-size: 11px; color: #cbd5e1; }
+.yn-card__time   { font-size: 11px; color: #cbd5e1; }
 
-/* ── Modal ────────────────────────────── */
+/* ════════════════════════════════════════════════════
+   MODAL — base (desktop)
+   ════════════════════════════════════════════════════ */
 .yn-overlay {
   position: fixed; inset: 0; background: rgba(15,23,42,.65);
-  backdrop-filter: blur(6px); display: flex; align-items: center;
-  justify-content: center; z-index: 9999; padding: 16px;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; padding: 16px;
+  overscroll-behavior: contain;
 }
 .yn-modal {
   background: #fff; border-radius: 16px; max-width: 600px; width: 100%;
-  max-height: 90vh; overflow-y: auto; position: relative; padding: 28px;
-  box-shadow: 0 24px 64px rgba(0,0,0,.22);
+  max-height: 90vh; display: flex; flex-direction: column;
+  position: relative; box-shadow: 0 24px 64px rgba(0,0,0,.22);
+  overscroll-behavior: contain;
+}
+.yn-modal__handle { display: none; } /* oculto no desktop */
+.yn-modal__body {
+  flex: 1; overflow-y: auto; padding: 28px;
+  -webkit-overflow-scrolling: touch;
+}
+.yn-modal__actions {
+  padding: 0 28px 24px; flex-shrink: 0;
 }
 .yn-modal__close {
-  position: absolute; top: 16px; right: 16px; width: 32px; height: 32px;
+  position: absolute; top: 16px; right: 16px; width: 36px; height: 36px;
   border: none; border-radius: 50%; background: #f1f5f9; color: #64748b;
   font-size: 14px; cursor: pointer; display: flex; align-items: center;
-  justify-content: center; transition: background .15s; z-index: 1;
+  justify-content: center; transition: background .12s; z-index: 1;
+  touch-action: manipulation;
 }
-.yn-modal__close:hover { background: #e2e8f0; }
+.yn-modal__close:hover  { background: #e2e8f0; }
+.yn-modal__close:active { background: #cbd5e1; }
 .yn-modal__badge {
   display: inline-block; color: #fff; font-size: 11px; font-weight: 700;
   padding: 4px 10px; border-radius: 4px; text-transform: uppercase;
@@ -100,33 +159,37 @@
 .yn-modal__img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 10px; margin-bottom: 20px; }
 .yn-modal__title { font-size: 20px; font-weight: 700; color: #0f172a; line-height: 1.35; margin: 0 0 12px; }
 .yn-modal__meta {
-  display: flex; align-items: center; gap: 12px;
-  padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid #f1f5f9;
 }
 .yn-modal__source { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; }
-.yn-modal__date { font-size: 12px; color: #94a3b8; }
+.yn-modal__date   { font-size: 12px; color: #94a3b8; }
 .yn-modal__excerpt-box {
   background: #f8fafc; border-left: 3px solid #e2e8f0;
-  border-radius: 0 8px 8px 0; padding: 14px 16px; margin-bottom: 20px;
+  border-radius: 0 8px 8px 0; padding: 14px 16px; margin-bottom: 4px;
 }
 .yn-modal__excerpt-label {
   display: block; font-size: 10px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .8px; color: #94a3b8; margin-bottom: 8px;
 }
 .yn-modal__lead {
-  font-size: 15px; font-weight: 500; line-height: 1.7;
-  color: #1e293b; margin: 0 0 8px;
+  font-size: 15px; font-weight: 500; line-height: 1.7; color: #1e293b; margin: 0 0 8px;
 }
 .yn-modal__lead:last-child { margin-bottom: 0; }
 .yn-modal__content { font-size: 14px; line-height: 1.75; color: #475569; margin: 0; }
 .yn-modal__cta {
-  display: block; text-align: center; padding: 13px 24px; border-radius: 10px;
+  display: block; text-align: center; padding: 14px 24px; border-radius: 12px;
   color: #fff; font-size: 14px; font-weight: 700; text-decoration: none;
-  transition: opacity .15s, transform .15s;
+  transition: opacity .12s, transform .12s; touch-action: manipulation;
 }
-.yn-modal__cta:hover { opacity: .88; transform: translateY(-1px); }
+.yn-modal__cta:active { opacity: .85; transform: scale(.98); }
+@media (hover: hover) {
+  .yn-modal__cta:hover { opacity: .88; transform: translateY(-1px); }
+}
 
-/* ── Skeleton ─────────────────────────── */
+/* ════════════════════════════════════════════════════
+   SKELETON
+   ════════════════════════════════════════════════════ */
 .yn-card--skeleton { cursor: default; pointer-events: none; }
 .yn-sk {
   border-radius: 4px;
@@ -134,25 +197,146 @@
   background-size: 200% 100%; animation: yn-shimmer 1.4s ease-in-out infinite;
 }
 @keyframes yn-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-.yn-sk--img { width: 100%; aspect-ratio: 16/9; border-radius: 0; }
+.yn-sk--img   { width: 100%; aspect-ratio: 16/9; border-radius: 0; }
 .yn-sk--title { height: 15px; width: 85%; margin-bottom: 8px; }
-.yn-sk--text { height: 13px; width: 100%; margin-bottom: 6px; }
+.yn-sk--text  { height: 13px; width: 100%; margin-bottom: 6px; }
 .yn-sk--short { width: 55%; }
 
-/* ── Error / Empty ────────────────────── */
+/* ════════════════════════════════════════════════════
+   ESTADO DE ERRO / VAZIO
+   ════════════════════════════════════════════════════ */
 .yn-error {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 12px 16px; background: #fef2f2; border: 1px solid #fecaca;
-  border-radius: 10px; margin-bottom: 16px; font-size: 14px; color: #dc2626; flex-wrap: wrap;
+  border-radius: 10px; margin: 0 20px 16px; font-size: 14px; color: #dc2626; flex-wrap: wrap;
 }
 .yn-error__retry {
   background: #dc2626; color: #fff; border: none; border-radius: 6px;
-  padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
+  white-space: nowrap; touch-action: manipulation;
 }
 .yn-empty { grid-column: 1/-1; text-align: center; padding: 52px 24px; color: #94a3b8; }
 .yn-empty p { font-size: 15px; margin: 0 0 16px; }
 .yn-empty__btn {
-  background: #2563eb; color: #fff; border: none; border-radius: 8px;
-  padding: 10px 22px; font-size: 14px; font-weight: 600; cursor: pointer;
+  background: #2563eb; color: #fff; border: none; border-radius: 10px;
+  padding: 11px 24px; font-size: 14px; font-weight: 600; cursor: pointer;
+  touch-action: manipulation;
 }
 .yn-empty__btn:hover { background: #1d4ed8; }
+
+/* ════════════════════════════════════════════════════
+   TABLET — 2 colunas (641px – 1023px)
+   ════════════════════════════════════════════════════ */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .yn-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ════════════════════════════════════════════════════
+   MOBILE — app nativo (≤ 640px)
+   ════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+
+  /* Feed header */
+  .yn-feed__header { padding: 16px 16px 0; margin-bottom: 12px; }
+  .yn-feed__title  { font-size: 18px; }
+  .yn-feed__refresh { font-size: 12px; padding: 0 12px; height: 36px; }
+
+  /* Filtros: botões menores, padding interno */
+  .yn-filter { padding: 10px 16px 4px; gap: 6px; margin-bottom: 12px; }
+  .yn-filter__btn { padding: 0 13px; height: 34px; font-size: 12px; }
+
+  /* Grid: lista vertical agrupada sem gap, separada por linha */
+  .yn-grid {
+    display: flex; flex-direction: column;
+    padding: 0; gap: 0;
+    background: #f1f5f9;
+  }
+
+  /* Card mobile: horizontal, imagem à direita (padrão Apple News / Google News) */
+  .yn-card {
+    flex-direction: row;
+    border-radius: 0; border: none;
+    border-bottom: 1px solid #e8edf2;
+    box-shadow: none;
+    background: #fff;
+    padding: 14px 16px; gap: 12px;
+    align-items: flex-start;
+    transform: none !important;
+  }
+  .yn-card:active { background: #f8fafc; }
+
+  /* Imagem: quadrado fixo à direita */
+  .yn-card__img-wrap {
+    width: 84px; height: 84px;
+    aspect-ratio: 1/1; border-radius: 8px;
+    flex-shrink: 0; order: 2; overflow: hidden;
+    background: #f1f5f9;
+  }
+  .yn-card__img { border-radius: 8px; }
+
+  /* Badge: posição dentro da imagem quadrada */
+  .yn-card__badge { font-size: 8px; padding: 2px 5px; bottom: 5px; left: 5px; }
+
+  /* Conteúdo à esquerda */
+  .yn-card__body {
+    flex: 1; order: 1; padding: 0;
+    gap: 4px; justify-content: space-between;
+    min-height: 84px;
+  }
+  .yn-card__title {
+    font-size: 15px; font-weight: 600; line-height: 1.4;
+    -webkit-line-clamp: 3;
+  }
+  /* Descrição oculta no mobile — espaço é limitado */
+  .yn-card__desc { display: none; }
+
+  .yn-card__footer {
+    padding-top: 6px; border-top: none; margin-top: 0;
+  }
+  .yn-card__source { font-size: 10px; }
+  .yn-card__time   { font-size: 10px; }
+
+  /* Skeleton mobile: igual ao card horizontal */
+  .yn-card--skeleton { flex-direction: row; padding: 14px 16px; gap: 12px; }
+  .yn-sk--img { width: 84px; height: 84px; aspect-ratio: 1/1; border-radius: 8px; flex-shrink: 0; }
+  .yn-sk--title { height: 14px; }
+  .yn-sk--text  { height: 12px; }
+
+  /* Erro ocupa a tela toda no mobile */
+  .yn-error { margin: 0 16px 12px; }
+
+  /* ── Modal: Bottom Sheet (slide de baixo) ── */
+  .yn-overlay {
+    align-items: flex-end;
+    padding: 0;
+    background: rgba(15,23,42,.5);
+  }
+  .yn-modal {
+    border-radius: 20px 20px 0 0;
+    max-width: 100%; width: 100%;
+    max-height: 92dvh;
+    box-shadow: 0 -8px 40px rgba(0,0,0,.18);
+  }
+
+  /* Drag handle visual */
+  .yn-modal__handle {
+    display: block;
+    width: 36px; height: 4px;
+    background: #cbd5e1; border-radius: 2px;
+    margin: 12px auto 4px;
+    flex-shrink: 0;
+  }
+
+  .yn-modal__body  { padding: 16px 20px 8px; }
+  .yn-modal__actions {
+    padding: 8px 20px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid #f1f5f9;
+    background: #fff;
+  }
+
+  .yn-modal__close { top: 14px; right: 16px; width: 32px; height: 32px; font-size: 13px; }
+  .yn-modal__title { font-size: 18px; }
+  .yn-modal__img   { border-radius: 8px; margin-bottom: 14px; }
+  .yn-modal__cta   { padding: 15px 24px; font-size: 15px; border-radius: 14px; }
+}

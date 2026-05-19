@@ -1,62 +1,82 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { height: 100%; }
+
 body {
   background: #f1f5f9;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  height: 100%;
 }
 
-.app { min-height: 100vh; display: flex; flex-direction: column; }
+.app { min-height: 100dvh; display: flex; flex-direction: column; }
 
-/* ── Header ── */
+/* ── Header ────────────────────────────────────────────────────── */
 .app-header {
   background: #0f172a;
-  border-bottom: 1px solid #1e293b;
-  position: sticky; top: 0; z-index: 100;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  position: sticky; top: 0; z-index: 200;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 .app-header__inner {
-  max-width: 1200px; margin: 0 auto; padding: 16px 24px;
+  max-width: 1200px; margin: 0 auto; padding: 14px 20px;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
 }
-.app-header__brand { display: flex; align-items: center; gap: 12px; }
-.app-header__logo { font-size: 32px; line-height: 1; }
+.app-header__brand { display: flex; align-items: center; gap: 10px; }
+.app-header__logo { font-size: 28px; line-height: 1; }
 .app-header__name {
-  font-size: 22px; font-weight: 800; color: #f8fafc;
+  font-size: 20px; font-weight: 800; color: #f8fafc;
   letter-spacing: -.5px; line-height: 1;
 }
-.app-header__tagline { font-size: 11px; color: #64748b; margin-top: 3px; letter-spacing: .2px; }
+.app-header__tagline { font-size: 11px; color: #64748b; margin-top: 3px; }
 
 .app-header__pill {
   display: flex; align-items: center; gap: 6px;
-  background: rgba(22,163,74,.15); border: 1px solid rgba(22,163,74,.3);
+  background: rgba(22,163,74,.12); border: 1px solid rgba(22,163,74,.28);
   border-radius: 20px; padding: 5px 12px;
-  font-size: 12px; font-weight: 600; color: #4ade80;
-  white-space: nowrap;
+  font-size: 12px; font-weight: 600; color: #4ade80; white-space: nowrap;
 }
 .app-header__dot {
   width: 7px; height: 7px; border-radius: 50%;
-  background: #4ade80;
-  box-shadow: 0 0 0 0 rgba(74,222,128,.6);
-  animation: pulse 2s infinite;
+  background: #4ade80; animation: pulse 2s infinite;
 }
 @keyframes pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,.5); }
   50%       { box-shadow: 0 0 0 5px rgba(74,222,128,0); }
 }
 
-/* ── Main ── */
-.app-main { flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; padding: 28px 20px; }
+/* ── Main ─────────────────────────────────────────────────────── */
+.app-main {
+  flex: 1; max-width: 1200px; width: 100%;
+  margin: 0 auto; padding: 24px 20px;
+}
 
-/* ── Footer ── */
+/* ── Footer ───────────────────────────────────────────────────── */
 .app-footer {
   background: #0f172a; border-top: 1px solid #1e293b;
-  padding: 16px 24px; text-align: center;
+  padding: 14px 24px; text-align: center;
   font-size: 12px; color: #475569;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
 }
-.app-footer strong { color: #64748b; }
 
-@media (max-width: 600px) {
+/* ════════════════════════════════════════════════════════════════
+   MOBILE — sensação de app nativo
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
   .app-header__tagline { display: none; }
-  .app-header__inner { padding: 12px 16px; }
-  .app-main { padding: 16px 12px; }
+  .app-header__logo    { font-size: 24px; }
+  .app-header__name    { font-size: 18px; }
+  .app-header__inner   { padding: 12px 16px; }
+  /* Pill fica só o ponto piscando no mobile */
+  .app-header__pill span:last-child { display: none; }
+  .app-header__pill { padding: 8px 10px; border-radius: 50%; }
+
+  /* Feed ocupa a largura total (padding controlado internamente) */
+  .app-main { padding: 0; }
+
+  /* Sem footer no mobile — economiza espaço, parece app */
+  .app-footer { display: none; }
 }
