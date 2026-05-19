@@ -1,12 +1,14 @@
-// Vercel Edge Function — tenta GNews → NewsAPI como fallback
+// Vercel Edge Function — tenta GNews (por busca de palavras-chave) → NewsAPI como fallback
 export const config = { runtime: 'edge' };
 
-const GNEWS_CAT: Record<string, string> = {
-  geral:      'breaking-news',
-  politica:   'nation',
-  esportes:   'sports',
-  economia:   'business',
-  tecnologia: 'technology',
+// GNews: usa /search com palavras-chave para filtrar conteúdo real por categoria
+// (top-headlines por tópico retorna o mesmo pool de notícias gerais do Brasil)
+const GNEWS_QUERIES: Record<string, string> = {
+  geral:      'brasil notícias hoje',
+  politica:   'política governo congresso eleições senado câmara presidência',
+  esportes:   'esportes futebol campeonato atleta copa brasileirão',
+  economia:   'economia dólar bolsa inflação PIB mercado financeiro selic',
+  tecnologia: 'tecnologia startup inovação inteligência artificial IA software',
 };
 
 const NEWSAPI_CAT: Record<string, string> = {
@@ -43,15 +45,18 @@ async function tryGNews(category: string, max: number): Promise<Article[]> {
     process.env.VITE_GNEWS_API_KEY;
   if (!key) throw new Error('GNEWS_KEY não configurada');
 
+  const query = GNEWS_QUERIES[category] ?? 'brasil notícias';
   const p = new URLSearchParams({
-    category: GNEWS_CAT[category] ?? 'breaking-news',
-    lang: 'pt',
+    q:       query,
+    lang:    'pt',
     country: 'br',
-    max: String(max),
-    apikey: key,
+    max:     String(max),
+    in:      'title,description',
+    apikey:  key,
   });
 
-  const res = await fetch(`https://gnews.io/api/v4/top-headlines?${p}`, {
+  // Usa /search para filtrar por palavras-chave → conteúdo relevante por categoria
+  const res = await fetch(`https://gnews.io/api/v4/search?${p}`, {
     headers: { 'User-Agent': 'YaguarNews/1.0' },
   });
   if (!res.ok) throw new Error(`GNews HTTP ${res.status}`);
@@ -77,14 +82,21 @@ async function tryNewsAPI(category: string, max: number): Promise<Article[]> {
   const key = process.env.NEWSAPI_KEY;
   if (!key) throw new Error('NEWSAPI_KEY não configurada');
 
+  const NEWSAPI_KEYWORDS: Record<string, string> = {
+    politica:   'política governo eleições congresso senado',
+    esportes:   'futebol esportes campeonato Copa',
+    economia:   'economia mercado bolsa inflação PIB',
+    tecnologia: 'tecnologia startup inovação inteligência artificial',
+  };
+
   const p = new URLSearchParams({
     category: NEWSAPI_CAT[category] ?? 'general',
     country:  'br',
     pageSize: String(max),
     apiKey:   key,
   });
-  if (category === 'politica') {
-    p.set('q', 'política governo eleições congresso');
+  if (NEWSAPI_KEYWORDS[category]) {
+    p.set('q', NEWSAPI_KEYWORDS[category]);
   }
 
   const res = await fetch(`https://newsapi.org/v2/top-headlines?${p}`, {
