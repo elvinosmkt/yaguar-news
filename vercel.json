@@ -1,0 +1,10 @@
+{
+  "name": "yaguar-news",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "env": {
+    "VITE_GNEWS_API_KEY": "@yaguar-news-api-key"
+  }
+}
