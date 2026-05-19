@@ -25,6 +25,10 @@ function writeCache(articles: ArticlesMap) {
   localStorage.setItem(`${PREFIX}last_fetch`, String(Date.now()));
 }
 
+function hasCachedArticles(articles: ArticlesMap): boolean {
+  return CATS.some((cat) => articles[cat].length > 0);
+}
+
 export interface UseNewsReturn extends NewsState {
   refresh: () => void;
   selectedCategory: NewsCategory;
@@ -37,9 +41,10 @@ export function useNews(config: NewsSDKConfig): UseNewsReturn {
   const scheduleHours = config.scheduleHours ?? [6, 15];
   const cached = readCache();
 
+  // Se não há cache, começa com loading=true para mostrar skeletons imediatamente
   const [state, setState] = useState<NewsState>({
     articles: cached.articles,
-    loading: false,
+    loading: !hasCachedArticles(cached.articles),
     error: null,
     lastUpdated: cached.lastFetch,
   });
@@ -53,8 +58,13 @@ export function useNews(config: NewsSDKConfig): UseNewsReturn {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
       const articles = await fetchAllCategories(configRef.current);
-      writeCache(articles);
-      setState({ articles, loading: false, error: null, lastUpdated: Date.now() });
+      // Verifica se pelo menos uma categoria teve artigos
+      const hasAny = CATS.some((c) => articles[c].length > 0);
+      if (hasAny) writeCache(articles);
+      setState({ articles, loading: false, error: null, lastUpdated: hasAny ? Date.now() : null });
+      if (!hasAny) {
+        setState((s) => ({ ...s, error: 'Nenhuma notícia retornada pelas fontes. Tente atualizar.' }));
+      }
     } catch (err) {
       setState((s) => ({
         ...s,

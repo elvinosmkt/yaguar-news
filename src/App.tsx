@@ -20,7 +20,7 @@ export default function App() {
             <span className="app-header__logo">🐆</span>
             <div>
               <div className="app-header__name">Yaguar News</div>
-              <div className="app-header__tagline">Atualizado às 06h e 15h · Política · Esportes · Economia · Tecnologia</div>
+              <div className="app-header__tagline">Notícias às 06h e 15h</div>
             </div>
           </div>
           <div className="app-header__pill">
@@ -31,11 +31,11 @@ export default function App() {
       </header>
 
       <main className="app-main">
-        <NewsFeed news={news} title="" />
+        <NewsFeed news={news} />
       </main>
 
       <footer className="app-footer">
-        <p>Powered by <strong>GNews</strong> · Yaguar News © {new Date().getFullYear()}</p>
+        <p>Yaguar News © {new Date().getFullYear()}</p>
       </footer>
     </div>
   );
