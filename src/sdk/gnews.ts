@@ -37,8 +37,9 @@ async function fetchFromProxy(
 ): Promise<NewsArticle[]> {
   const max = config.maxArticlesPerCategory ?? 10;
   const params = new URLSearchParams({ category, max: String(max) });
+  const base = config.proxyUrl ?? '/api/news';
 
-  const res = await fetch(`/api/news?${params}`);
+  const res = await fetch(`${base}?${params}`);
   if (!res.ok) throw new Error(`Proxy /api/news retornou ${res.status}`);
 
   const data = await res.json();

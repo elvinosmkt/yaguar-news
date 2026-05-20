@@ -50,6 +50,8 @@ export interface NewsSDKConfig {
   maxArticlesPerCategory?: number;
   scheduleHours?: number[];
   categories?: NewsCategory[];
+  /** URL do proxy backend. Default: '/api/news' (Vercel function local). */
+  proxyUrl?: string;
 }
 
 export type ArticlesMap = Record<NewsCategory, NewsArticle[]>;

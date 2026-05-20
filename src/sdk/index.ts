@@ -1,3 +1,5 @@
+import './styles.css';
+
 export { NewsFeed } from './NewsFeed';
 export { NewsCard } from './NewsCard';
 export { NewsModal } from './NewsModal';
