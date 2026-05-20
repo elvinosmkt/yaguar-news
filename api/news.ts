@@ -1,14 +1,15 @@
 // Vercel Edge Function — tenta GNews (top-headlines por tópico) → NewsAPI como fallback
 export const config = { runtime: 'edge' };
 
-// Mapeamento para /top-headlines?topic= — garante conteúdo editorialmente segregado
-const GNEWS_TOPICS: Record<string, string> = {
-  geral:      'breaking-news',
-  esportes:   'sports',
-  economia:   'business',
-  tecnologia: 'technology',
+// Uma palavra por categoria: GNews /search trata espaços como AND
+// → multi-palavra = 0 resultados. Palavra única = match amplo e confiável.
+const GNEWS_TERMS: Record<string, string> = {
+  geral:      'brasil',
+  politica:   'política',
+  esportes:   'futebol',
+  economia:   'economia',
+  tecnologia: 'tecnologia',
 };
-// politica não tem tópico direto no GNews — usa /search com query simples
 
 const NEWSAPI_CAT: Record<string, string> = {
   geral:      'general',
@@ -44,31 +45,18 @@ async function tryGNews(category: string, max: number): Promise<Article[]> {
     process.env.VITE_GNEWS_API_KEY;
   if (!key) throw new Error('GNEWS_KEY não configurada');
 
-  let endpoint: string;
-
-  if (category in GNEWS_TOPICS) {
-    // /top-headlines?topic= segrega o conteúdo editorialmente — sem overlap entre categorias
-    const p = new URLSearchParams({
-      topic:   GNEWS_TOPICS[category],
-      lang:    'pt',
-      country: 'br',
-      max:     String(max),
-      apikey:  key,
-    });
-    endpoint = `https://gnews.io/api/v4/top-headlines?${p}`;
-  } else {
-    // politica: /search com query curta e sem filtro `in` para não restringir demais
-    const p = new URLSearchParams({
-      q:       'política',
-      lang:    'pt',
-      country: 'br',
-      max:     String(max),
-      apikey:  key,
-    });
-    endpoint = `https://gnews.io/api/v4/search?${p}`;
-  }
-
-  const res = await fetch(endpoint, { headers: { 'User-Agent': 'YaguarNews/1.0' } });
+  const q = GNEWS_TERMS[category] ?? 'brasil';
+  const p = new URLSearchParams({
+    q,
+    lang:    'pt',
+    country: 'br',
+    max:     String(max),
+    apikey:  key,
+  });
+  // sem parâmetro `in` → busca em título + descrição + conteúdo (mais resultados)
+  const res = await fetch(`https://gnews.io/api/v4/search?${p}`, {
+    headers: { 'User-Agent': 'YaguarNews/1.0' },
+  });
   if (!res.ok) throw new Error(`GNews HTTP ${res.status}`);
 
   const data = await res.json();
@@ -92,22 +80,12 @@ async function tryNewsAPI(category: string, max: number): Promise<Article[]> {
   const key = process.env.NEWSAPI_KEY;
   if (!key) throw new Error('NEWSAPI_KEY não configurada');
 
-  const NEWSAPI_KEYWORDS: Record<string, string> = {
-    politica:   'política governo eleições congresso senado',
-    esportes:   'futebol esportes campeonato Copa',
-    economia:   'economia mercado bolsa inflação PIB',
-    tecnologia: 'tecnologia startup inovação inteligência artificial',
-  };
-
   const p = new URLSearchParams({
     category: NEWSAPI_CAT[category] ?? 'general',
     country:  'br',
     pageSize: String(max),
     apiKey:   key,
   });
-  if (NEWSAPI_KEYWORDS[category]) {
-    p.set('q', NEWSAPI_KEYWORDS[category]);
-  }
 
   const res = await fetch(`https://newsapi.org/v2/top-headlines?${p}`, {
     headers: { 'User-Agent': 'YaguarNews/1.0' },
