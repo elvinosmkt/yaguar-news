@@ -162,7 +162,7 @@ export default async function handler(request: Request): Promise<Response> {
 
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Cache-Control': 's-maxage=300, stale-while-revalidate=600',
+    'Cache-Control': 'no-store',
     'Content-Type': 'application/json',
   };
 

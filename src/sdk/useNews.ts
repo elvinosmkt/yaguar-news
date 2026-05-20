@@ -3,8 +3,10 @@ import { NewsArticle, NewsCategory, NewsSDKConfig, NewsState, ArticlesMap, empty
 import { fetchAllCategories } from './gnews';
 import { shouldFetchNow, msUntilNext } from './scheduler';
 
-const PREFIX = 'crm_news_v2_';
+// Bump de versão invalida cache antigo corrompido no localStorage
+const PREFIX = 'crm_news_v3_';
 const CATS: NewsCategory[] = ['geral', 'politica', 'esportes', 'economia', 'tecnologia'];
+const STALE_MS = 30 * 60 * 1000; // 30 minutos
 
 function readCache(): { articles: ArticlesMap; lastFetch: number | null } {
   const articles = emptyArticlesMap();
@@ -25,8 +27,10 @@ function writeCache(articles: ArticlesMap) {
   localStorage.setItem(`${PREFIX}last_fetch`, String(Date.now()));
 }
 
+// Considera cache válido só se a MAIORIA das categorias tem artigos
 function hasCachedArticles(articles: ArticlesMap): boolean {
-  return CATS.some((cat) => articles[cat].length > 0);
+  const filled = CATS.filter((cat) => articles[cat].length > 0).length;
+  return filled >= Math.ceil(CATS.length / 2);
 }
 
 export interface UseNewsReturn extends NewsState {
@@ -41,7 +45,6 @@ export function useNews(config: NewsSDKConfig): UseNewsReturn {
   const scheduleHours = config.scheduleHours ?? [6, 15];
   const cached = readCache();
 
-  // Se não há cache, começa com loading=true para mostrar skeletons imediatamente
   const [state, setState] = useState<NewsState>({
     articles: cached.articles,
     loading: !hasCachedArticles(cached.articles),
@@ -58,7 +61,6 @@ export function useNews(config: NewsSDKConfig): UseNewsReturn {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
       const articles = await fetchAllCategories(configRef.current);
-      // Verifica se pelo menos uma categoria teve artigos
       const hasAny = CATS.some((c) => articles[c].length > 0);
       if (hasAny) writeCache(articles);
       setState({ articles, loading: false, error: null, lastUpdated: hasAny ? Date.now() : null });
@@ -83,9 +85,9 @@ export function useNews(config: NewsSDKConfig): UseNewsReturn {
     }, delay);
   }, [fetchNews]);
 
+  // Fetch inicial: busca se cache inválido ou horário agendado passou
   useEffect(() => {
     const { lastFetch } = readCache();
-    // Faz fetch se: não há cache válido (API falhou antes) OU horário agendado passou
     if (!hasCachedArticles(cached.articles) || shouldFetchNow(lastFetch, { hours: scheduleHours })) {
       fetchNews().then(scheduleNext);
     } else {
@@ -93,6 +95,19 @@ export function useNews(config: NewsSDKConfig): UseNewsReturn {
     }
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, []);
+
+  // Auto-refresh ao voltar ao tab se dados tiverem mais de 30 minutos
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      const { lastFetch } = readCache();
+      if (!lastFetch || Date.now() - lastFetch > STALE_MS) {
+        fetchNews();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [fetchNews]);
 
   return { ...state, refresh: fetchNews, selectedCategory, setCategory, selectedArticle, selectArticle };
 }

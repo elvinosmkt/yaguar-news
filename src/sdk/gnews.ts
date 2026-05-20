@@ -63,5 +63,17 @@ export async function fetchAllCategories(config: NewsSDKConfig): Promise<Article
     if (i < categories.length - 1) await delay(1200);
   }
 
+  // Deduplicação: cada artigo aparece apenas na categoria mais específica.
+  // Categorias específicas têm prioridade; geral recebe o que sobrar.
+  const seen = new Set<string>();
+  const priority: NewsCategory[] = ['tecnologia', 'economia', 'esportes', 'politica', 'geral'];
+  for (const cat of priority) {
+    map[cat] = map[cat].filter(a => {
+      if (seen.has(a.url)) return false;
+      seen.add(a.url);
+      return true;
+    });
+  }
+
   return map;
 }
