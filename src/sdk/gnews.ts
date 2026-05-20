@@ -81,14 +81,20 @@ export async function fetchAllCategories(config: NewsSDKConfig): Promise<Article
     if (i < categories.length - 1) await delay(1200);
   }
 
-  // 1ª passagem: reclassifica artigos que a API colocou na categoria errada.
-  // Ex: artigo de futebol retornado para "geral" vai para "esportes".
+  // 1ª passagem: reclassifica apenas artigos de "geral" — artigos vindos de
+  // categorias específicas já foram buscados com query direcionada e mantêm
+  // sua categoria (evita downgrade de esportes/politica/etc. para "geral").
   const reclassified = emptyArticlesMap();
   for (const cat of categories) {
     for (const article of map[cat]) {
-      const correct = detectCategory(article);
-      article.category = correct;
-      reclassified[correct].push(article);
+      if (cat === 'geral') {
+        const promoted = detectCategory(article);
+        article.category = promoted;
+        reclassified[promoted].push(article);
+      } else {
+        article.category = cat;
+        reclassified[cat].push(article);
+      }
     }
   }
 
