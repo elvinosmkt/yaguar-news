@@ -29,7 +29,11 @@ export function NewsFeed({ news, title = 'Notícias' }: Props) {
     acc[cat] = articles[cat]?.length ?? 0; return acc;
   }, {} as Partial<Record<NewsCategory, number>>);
 
-  const current = articles[selectedCategory] ?? [];
+  // Filtra por categoria selecionada — garante que nenhum artigo de outra
+  // categoria apareça mesmo se o cache estiver com dados inconsistentes.
+  const current = (articles[selectedCategory] ?? []).filter(
+    (a) => a.category === selectedCategory
+  );
 
   return (
     <section className="yn-feed">

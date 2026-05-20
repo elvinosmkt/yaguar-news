@@ -4,7 +4,7 @@ import { fetchAllCategories } from './gnews';
 import { shouldFetchNow, msUntilNext } from './scheduler';
 
 // Bump de versão invalida cache antigo corrompido no localStorage
-const PREFIX = 'crm_news_v3_';
+const PREFIX = 'crm_news_v4_';
 const CATS: NewsCategory[] = ['geral', 'politica', 'esportes', 'economia', 'tecnologia'];
 const STALE_MS = 30 * 60 * 1000; // 30 minutos
 

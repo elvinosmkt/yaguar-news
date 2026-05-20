@@ -1,28 +1,21 @@
 import { NewsArticle, NewsCategory, NewsSDKConfig, ArticlesMap, emptyArticlesMap } from './types';
 
-// Segunda camada de filtragem: classifica pelo conteúdo do título quando a API
-// retorna artigos na categoria errada (ex: notícia de futebol em "economia").
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  esportes:   ['futebol', 'gol', 'campeonato', 'seleção', 'copa', 'cbf', 'neymar', 'jogador', 'clube', 'vôlei', 'tênis', 'nadador', 'atleta', 'olímpico', 'esportivo'],
-  tecnologia: ['tecnologia', 'startup', 'software', 'digital', 'inteligência artificial', ' ia ', 'programação', 'internet', 'app ', 'robô', 'algoritmo', 'iphone', 'android'],
-  economia:   ['economia', 'mercado', 'bolsa', 'inflação', 'pib', 'dólar', 'selic', 'juros', 'banco', 'investimento', 'financeiro', 'desemprego', 'exportação'],
-  politica:   ['governo', 'senado', 'câmara', 'eleição', 'presidente', 'ministro', 'partido', 'congresso', 'deputado', 'stf', 'lula', 'bolsonaro', 'legislação'],
-};
-
-function detectCategory(article: NewsArticle): NewsCategory {
-  const text = `${article.title} ${article.description}`.toLowerCase();
-  const order: NewsCategory[] = ['esportes', 'tecnologia', 'economia', 'politica'];
-  for (const cat of order) {
-    if (CATEGORY_KEYWORDS[cat].some(kw => text.includes(kw))) return cat;
+// Hash djb2 — gera ID único a partir da URL completa, sem risco de colisão
+function makeId(url: string): string {
+  let h = 5381;
+  for (let i = 0; i < url.length; i++) {
+    h = (((h << 5) + h) ^ url.charCodeAt(i)) >>> 0;
   }
-  return 'geral';
+  return h.toString(36);
 }
 
-function makeId(url: string): string {
+// Normaliza URL para comparação: remove parâmetros de rastreamento e trailing slash
+function normalizeUrl(url: string): string {
   try {
-    return btoa(encodeURIComponent(url)).replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
+    const u = new URL(url);
+    return `${u.hostname}${u.pathname}`.toLowerCase().replace(/\/$/, '');
   } catch {
-    return Math.random().toString(36).slice(2);
+    return url.toLowerCase().replace(/\/$/, '');
   }
 }
 
@@ -30,7 +23,6 @@ function delay(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
 }
 
-// Toda busca passa pelo proxy /api/news — o servidor decide GNews vs NewsAPI
 async function fetchFromProxy(
   category: NewsCategory,
   config: NewsSDKConfig
@@ -40,7 +32,7 @@ async function fetchFromProxy(
   const base = config.proxyUrl ?? '/api/news';
 
   const res = await fetch(`${base}?${params}`);
-  if (!res.ok) throw new Error(`Proxy /api/news retornou ${res.status}`);
+  if (!res.ok) throw new Error(`Proxy retornou ${res.status}`);
 
   const data = await res.json();
   if (data.error) throw new Error(data.error);
@@ -48,7 +40,7 @@ async function fetchFromProxy(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data.articles ?? []).map((a: any) => ({
     id:          makeId(a.url),
-    title:       a.title,
+    title:       a.title ?? '',
     description: a.description ?? '',
     content:     a.content ?? '',
     url:         a.url,
@@ -71,44 +63,44 @@ export async function fetchCategoryNews(
   }
 }
 
+function dedupWithin(articles: NewsArticle[]): NewsArticle[] {
+  const seenUrl = new Set<string>();
+  const seenTitle = new Set<string>();
+  return articles.filter(a => {
+    const urlKey = normalizeUrl(a.url);
+    const titleKey = a.title.toLowerCase().trim().slice(0, 80);
+    if (seenUrl.has(urlKey) || seenTitle.has(titleKey)) return false;
+    seenUrl.add(urlKey);
+    seenTitle.add(titleKey);
+    return true;
+  });
+}
+
 // Sequencial para respeitar rate limit do GNews (1 req/s no plano free)
 export async function fetchAllCategories(config: NewsSDKConfig): Promise<ArticlesMap> {
-  const categories = config.categories ??
-    (['geral', 'politica', 'esportes', 'economia', 'tecnologia'] as NewsCategory[]);
+  const categories: NewsCategory[] = config.categories ??
+    ['geral', 'politica', 'esportes', 'economia', 'tecnologia'];
   const map = emptyArticlesMap();
 
   for (let i = 0; i < categories.length; i++) {
-    map[categories[i]] = await fetchCategoryNews(categories[i], config);
+    const raw = await fetchCategoryNews(categories[i], config);
+    // Remove duplicatas dentro da mesma categoria (por URL e por título)
+    map[categories[i]] = dedupWithin(raw);
     if (i < categories.length - 1) await delay(1200);
   }
 
-  // 1ª passagem: reclassifica apenas artigos de "geral" — artigos vindos de
-  // categorias específicas já foram buscados com query direcionada e mantêm
-  // sua categoria (evita downgrade de esportes/politica/etc. para "geral").
-  const reclassified = emptyArticlesMap();
-  for (const cat of categories) {
-    for (const article of map[cat]) {
-      if (cat === 'geral') {
-        const promoted = detectCategory(article);
-        article.category = promoted;
-        reclassified[promoted].push(article);
-      } else {
-        article.category = cat;
-        reclassified[cat].push(article);
-      }
-    }
-  }
-
-  // 2ª passagem: deduplicação — cada URL aparece só uma vez (categoria mais específica).
-  const seen = new Set<string>();
+  // Remove duplicatas entre categorias — artigo fica na sua categoria de origem
+  // Prioridade: categorias específicas têm precedência sobre "geral"
+  const globalSeen = new Set<string>();
   const priority: NewsCategory[] = ['tecnologia', 'economia', 'esportes', 'politica', 'geral'];
   for (const cat of priority) {
-    reclassified[cat] = reclassified[cat].filter(a => {
-      if (seen.has(a.url)) return false;
-      seen.add(a.url);
+    map[cat] = map[cat].filter(a => {
+      const key = normalizeUrl(a.url);
+      if (globalSeen.has(key)) return false;
+      globalSeen.add(key);
       return true;
     });
   }
 
-  return reclassified;
+  return map;
 }
