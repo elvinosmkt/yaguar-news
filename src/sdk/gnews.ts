@@ -1,5 +1,23 @@
 import { NewsArticle, NewsCategory, NewsSDKConfig, ArticlesMap, emptyArticlesMap } from './types';
 
+// Segunda camada de filtragem: classifica pelo conteúdo do título quando a API
+// retorna artigos na categoria errada (ex: notícia de futebol em "economia").
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  esportes:   ['futebol', 'gol', 'campeonato', 'seleção', 'copa', 'cbf', 'neymar', 'jogador', 'clube', 'vôlei', 'tênis', 'nadador', 'atleta', 'olímpico', 'esportivo'],
+  tecnologia: ['tecnologia', 'startup', 'software', 'digital', 'inteligência artificial', ' ia ', 'programação', 'internet', 'app ', 'robô', 'algoritmo', 'iphone', 'android'],
+  economia:   ['economia', 'mercado', 'bolsa', 'inflação', 'pib', 'dólar', 'selic', 'juros', 'banco', 'investimento', 'financeiro', 'desemprego', 'exportação'],
+  politica:   ['governo', 'senado', 'câmara', 'eleição', 'presidente', 'ministro', 'partido', 'congresso', 'deputado', 'stf', 'lula', 'bolsonaro', 'legislação'],
+};
+
+function detectCategory(article: NewsArticle): NewsCategory {
+  const text = `${article.title} ${article.description}`.toLowerCase();
+  const order: NewsCategory[] = ['esportes', 'tecnologia', 'economia', 'politica'];
+  for (const cat of order) {
+    if (CATEGORY_KEYWORDS[cat].some(kw => text.includes(kw))) return cat;
+  }
+  return 'geral';
+}
+
 function makeId(url: string): string {
   try {
     return btoa(encodeURIComponent(url)).replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
@@ -63,17 +81,27 @@ export async function fetchAllCategories(config: NewsSDKConfig): Promise<Article
     if (i < categories.length - 1) await delay(1200);
   }
 
-  // Deduplicação: cada artigo aparece apenas na categoria mais específica.
-  // Categorias específicas têm prioridade; geral recebe o que sobrar.
+  // 1ª passagem: reclassifica artigos que a API colocou na categoria errada.
+  // Ex: artigo de futebol retornado para "geral" vai para "esportes".
+  const reclassified = emptyArticlesMap();
+  for (const cat of categories) {
+    for (const article of map[cat]) {
+      const correct = detectCategory(article);
+      article.category = correct;
+      reclassified[correct].push(article);
+    }
+  }
+
+  // 2ª passagem: deduplicação — cada URL aparece só uma vez (categoria mais específica).
   const seen = new Set<string>();
   const priority: NewsCategory[] = ['tecnologia', 'economia', 'esportes', 'politica', 'geral'];
   for (const cat of priority) {
-    map[cat] = map[cat].filter(a => {
+    reclassified[cat] = reclassified[cat].filter(a => {
       if (seen.has(a.url)) return false;
       seen.add(a.url);
       return true;
     });
   }
 
-  return map;
+  return reclassified;
 }

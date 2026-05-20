@@ -1,14 +1,15 @@
 // Vercel Edge Function — tenta GNews → WorldNewsAPI → NewsAPI
 export const config = { runtime: 'edge' };
 
-// Uma palavra por categoria: GNews /search trata espaços como AND
-// → multi-palavra = 0 resultados. Palavra única = match amplo e confiável.
-const GNEWS_TERMS: Record<string, string> = {
-  geral:      'brasil',
-  politica:   'política',
-  esportes:   'futebol',
-  economia:   'economia',
-  tecnologia: 'tecnologia',
+// Cada categoria busca por palavra única no TÍTULO (in=title) — evita overlap.
+// ex: artigo de futebol que menciona "economia" no corpo NÃO aparece em economia.
+// geral usa busca ampla (sem in=title) para pegar o que as outras não cobrem.
+const GNEWS_CONFIG: Record<string, { q: string; inTitle: boolean }> = {
+  geral:      { q: 'brasil',     inTitle: false },
+  politica:   { q: 'governo',   inTitle: true  },
+  esportes:   { q: 'futebol',   inTitle: true  },
+  economia:   { q: 'economia',  inTitle: true  },
+  tecnologia: { q: 'tecnologia',inTitle: true  },
 };
 
 const NEWSAPI_CAT: Record<string, string> = {
@@ -45,15 +46,15 @@ async function tryGNews(category: string, max: number): Promise<Article[]> {
     process.env.VITE_GNEWS_API_KEY;
   if (!key) throw new Error('GNEWS_KEY não configurada');
 
-  const q = GNEWS_TERMS[category] ?? 'brasil';
+  const cfg = GNEWS_CONFIG[category] ?? { q: 'brasil', inTitle: false };
   const p = new URLSearchParams({
-    q,
+    q:       cfg.q,
     lang:    'pt',
     country: 'br',
     max:     String(max),
     apikey:  key,
   });
-  // sem parâmetro `in` → busca em título + descrição + conteúdo (mais resultados)
+  if (cfg.inTitle) p.set('in', 'title');
   const res = await fetch(`https://gnews.io/api/v4/search?${p}`, {
     headers: { 'User-Agent': 'YaguarNews/1.0' },
   });
