@@ -1,4 +1,4 @@
-// Vercel Edge Function — tenta GNews (top-headlines por tópico) → NewsAPI como fallback
+// Vercel Edge Function — tenta GNews → WorldNewsAPI → NewsAPI
 export const config = { runtime: 'edge' };
 
 // Uma palavra por categoria: GNews /search trata espaços como AND
@@ -76,6 +76,50 @@ async function tryGNews(category: string, max: number): Promise<Article[]> {
     }));
 }
 
+// Termos de busca para WorldNewsAPI (suporta múltiplas palavras com OR implícito)
+const WORLDNEWS_TERMS: Record<string, string> = {
+  geral:      'brasil notícias',
+  politica:   'política governo',
+  esportes:   'futebol esportes',
+  economia:   'economia mercado',
+  tecnologia: 'tecnologia',
+};
+
+async function tryWorldNewsAPI(category: string, max: number): Promise<Article[]> {
+  const key = process.env.WORLDNEWS_API_KEY;
+  if (!key) throw new Error('WORLDNEWS_API_KEY não configurada');
+
+  const text = WORLDNEWS_TERMS[category] ?? 'brasil';
+  const p = new URLSearchParams({
+    text,
+    'source-countries': 'br',
+    language:           'pt',
+    number:             String(max),
+    'api-key':          key,
+  });
+
+  const res = await fetch(`https://api.worldnewsapi.com/search-news?${p}`, {
+    headers: { 'User-Agent': 'YaguarNews/1.0' },
+  });
+  if (!res.ok) throw new Error(`WorldNewsAPI HTTP ${res.status}`);
+
+  const data = await res.json();
+  const arts: any[] = data.news ?? [];
+  if (!arts.length) throw new Error('WorldNewsAPI retornou 0 artigos');
+
+  return arts
+    .filter((a) => a.title && a.url)
+    .map((a) => ({
+      title:       a.title,
+      description: clean(a.summary) || clean(a.text?.slice(0, 200)),
+      content:     clean(a.text),
+      url:         a.url,
+      image:       a.image ?? null,
+      publishedAt: a.publish_date ?? new Date().toISOString(),
+      source:      { name: a.source_country ?? 'Brasil', url: '' },
+    }));
+}
+
 async function tryNewsAPI(category: string, max: number): Promise<Article[]> {
   const key = process.env.NEWSAPI_KEY;
   if (!key) throw new Error('NEWSAPI_KEY não configurada');
@@ -130,7 +174,15 @@ export default async function handler(request: Request): Promise<Response> {
     console.warn('[YaguarNews] GNews falhou:', String(e));
   }
 
-  // 2️⃣ Fallback: NewsAPI
+  // 2️⃣ Fallback: WorldNewsAPI
+  try {
+    const articles = await tryWorldNewsAPI(category, max);
+    return Response.json({ totalArticles: articles.length, articles, source: 'worldnews' }, { headers });
+  } catch (e) {
+    console.warn('[YaguarNews] WorldNewsAPI falhou:', String(e));
+  }
+
+  // 3️⃣ Fallback: NewsAPI
   try {
     const articles = await tryNewsAPI(category, max);
     return Response.json({ totalArticles: articles.length, articles, source: 'newsapi' }, { headers });
