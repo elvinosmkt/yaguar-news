@@ -22,8 +22,7 @@
   "scripts": {
     "dev": "vite",
     "build:sdk": "vite build --config vite.lib.config.ts",
-    "build:demo": "tsc --noEmit && vite build",
-    "build": "vite build --config vite.lib.config.ts",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },
   "peerDependencies": {
