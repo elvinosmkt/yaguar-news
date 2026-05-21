@@ -1,5 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
 const MODELS = [
   'nvidia/nemotron-3-super-120b-a12b:free',
   'deepseek/deepseek-v4-flash:free',
@@ -46,14 +44,14 @@ async function callOpenRouter(key: string, model: string, prompt: string): Promi
     });
     clearTimeout(timer);
     if (!res.ok) return null;
-    const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+    const data = await res.json() as any;
     return data.choices?.[0]?.message?.content?.trim() || null;
   } catch {
     return null;
   }
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+module.exports = async (req: any, res: any) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json');
 
@@ -66,13 +64,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { title = '', description = '', content = '', url = '' } = req.body ?? {};
 
   const fullText = url ? await fetchFullText(url) : null;
+  const hasFullText = !!(fullText && fullText.length > 300);
 
-  const articleText = (fullText && fullText.length > 300)
-    ? fullText
+  const articleText = hasFullText
+    ? fullText!
     : [title && `Título: ${title}`, description && `Descrição: ${description}`, content && `Conteúdo: ${content}`]
         .filter(Boolean).join('\n\n');
-
-  const source = (fullText && fullText.length > 300) ? 'full' : 'partial';
 
   const prompt = `Você é um jornalista brasileiro experiente. Com base no texto abaixo, escreva um resumo completo da notícia em português.
 
@@ -80,9 +77,9 @@ Regras:
 - Escreva entre 3 e 5 parágrafos curtos e objetivos
 - Comece com o fato principal (quem, o quê, quando, onde)
 - Inclua contexto, causas e impacto quando disponível
-- Linguagem clara e direta, sem rebuscamento
-- Não invente dados além do texto original
-- Não use frases como "com base no texto" — escreva como notícia
+- Linguagem clara e direta
+- Não invente informações além do texto original
+- Não use "com base no texto" — escreva como notícia
 
 Texto:
 ${articleText}
@@ -92,9 +89,9 @@ Resumo:`;
   for (const model of MODELS) {
     const summary = await callOpenRouter(key, model, prompt);
     if (summary) {
-      return res.status(200).json({ summary, source, model });
+      return res.status(200).json({ summary, source: hasFullText ? 'full' : 'partial', model });
     }
   }
 
   return res.status(503).json({ error: 'Serviço temporariamente indisponível. Tente novamente.' });
-}
+};
