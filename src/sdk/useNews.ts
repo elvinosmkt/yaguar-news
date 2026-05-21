@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { NewsArticle, NewsCategory, NewsSDKConfig, NewsState, ArticlesMap, emptyArticlesMap } from './types';
 import { fetchAllCategories } from './gnews';
 import { shouldFetchNow, msUntilNext } from './scheduler';
+import { prefetchSummaries } from './summaryCache';
 
 // Bump de versão invalida cache antigo corrompido no localStorage
 const PREFIX = 'crm_news_v4_';
@@ -62,7 +63,13 @@ export function useNews(config: NewsSDKConfig): UseNewsReturn {
     try {
       const articles = await fetchAllCategories(configRef.current);
       const hasAny = CATS.some((c) => articles[c].length > 0);
-      if (hasAny) writeCache(articles);
+      if (hasAny) {
+        writeCache(articles);
+        // Pré-gera resumos em background — não bloqueia a UI
+        const allArticles = CATS.flatMap(c => articles[c]);
+        const summarizeUrl = configRef.current.summarizeUrl ?? '/api/summarize';
+        prefetchSummaries(allArticles, summarizeUrl).catch(() => {/* silencioso */});
+      }
       setState({ articles, loading: false, error: null, lastUpdated: hasAny ? Date.now() : null });
       if (!hasAny) {
         setState((s) => ({ ...s, error: 'Nenhuma notícia retornada pelas fontes. Tente atualizar.' }));

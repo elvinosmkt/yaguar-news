@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { NewsArticle, CATEGORY_LABELS, CATEGORY_COLORS } from './types';
+import { getSummary, saveSummary } from './summaryCache';
 
 function fmt(iso: string) {
   return new Date(iso).toLocaleString('pt-BR', {
@@ -15,9 +16,6 @@ function sourceDomain(article: NewsArticle): string {
     return article.source.name || 'fonte';
   }
 }
-
-// Cache em memória — evita chamar a IA duas vezes para o mesmo artigo
-const summaryCache = new Map<string, string>();
 
 interface Props {
   article: NewsArticle | null;
@@ -47,9 +45,10 @@ export function NewsModal({ article, onClose, summarizeUrl = '/api/summarize' }:
   useEffect(() => {
     if (!article) { setSummary(null); return; }
 
-    // Já tem no cache — usa direto
-    if (summaryCache.has(article.id)) {
-      setSummary(summaryCache.get(article.id)!);
+    // Já tem salvo no localStorage — usa direto, sem chamar a IA
+    const saved = getSummary(article.id);
+    if (saved) {
+      setSummary(saved);
       return;
     }
 
@@ -76,7 +75,7 @@ export function NewsModal({ article, onClose, summarizeUrl = '/api/summarize' }:
       .then(r => r.json())
       .then(data => {
         if (data.summary) {
-          summaryCache.set(article.id, data.summary);
+          saveSummary(article.id, data.summary);
           setSummary(data.summary);
         } else {
           setSummaryError(true);

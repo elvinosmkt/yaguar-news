@@ -52,6 +52,8 @@ export interface NewsSDKConfig {
   categories?: NewsCategory[];
   /** URL do proxy backend. Default: '/api/news' (Vercel function local). */
   proxyUrl?: string;
+  /** URL do endpoint de resumo IA. Default: '/api/summarize'. */
+  summarizeUrl?: string;
 }
 
 export type ArticlesMap = Record<NewsCategory, NewsArticle[]>;
