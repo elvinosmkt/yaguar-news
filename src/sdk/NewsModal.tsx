@@ -61,17 +61,13 @@ export function NewsModal({ article, onClose, summarizeUrl = '/api/summarize' }:
     setSummaryError(false);
     setLoadingSummary(true);
 
-    fetch(summarizeUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        title:       article.title,
-        description: article.description,
-        content:     article.content,
-        url:         article.url,
-      }),
-    })
+    const params = new URLSearchParams({
+      url:         article.url,
+      title:       article.title.slice(0, 200),
+      description: article.description.slice(0, 300),
+      content:     article.content.slice(0, 500),
+    });
+    fetch(`${summarizeUrl}?${params}`, { signal: ctrl.signal })
       .then(r => r.json())
       .then(data => {
         if (data.summary) {

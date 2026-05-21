@@ -8,7 +8,7 @@ const MODELS = [
 async function fetchFullText(url: string): Promise<string | null> {
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 5000);
+    const timer = setTimeout(() => ctrl.abort(), 6000);
     const res = await fetch(`https://r.jina.ai/${url}`, {
       headers: { Accept: 'text/plain', 'X-Return-Format': 'text' },
       signal: ctrl.signal,
@@ -51,25 +51,33 @@ async function callOpenRouter(key: string, model: string, prompt: string): Promi
   }
 }
 
+// GET /api/summarize?url=...&title=...
+// Resposta é cacheada pelo CDN do Vercel por 24h (s-maxage=86400)
+// Qualquer dispositivo que pedir o mesmo artigo recebe o cache instantâneo
 module.exports = async (req: any, res: any) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Use GET' });
 
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) return res.status(500).json({ error: 'OPENROUTER_API_KEY não configurada' });
 
-  const { title = '', description = '', content = '', url = '' } = req.body ?? {};
+  const { url = '', title = '', description = '', content = '' } = req.query ?? {};
 
-  const fullText = url ? await fetchFullText(url) : null;
+  if (!url) return res.status(400).json({ error: 'Parâmetro url obrigatório' });
+
+  // Busca texto completo via Jina Reader
+  const fullText = await fetchFullText(url as string);
   const hasFullText = !!(fullText && fullText.length > 300);
 
   const articleText = hasFullText
     ? fullText!
-    : [title && `Título: ${title}`, description && `Descrição: ${description}`, content && `Conteúdo: ${content}`]
-        .filter(Boolean).join('\n\n');
+    : [
+        title       && `Título: ${title}`,
+        description && `Descrição: ${description}`,
+        content     && `Conteúdo: ${content}`,
+      ].filter(Boolean).join('\n\n');
 
   const prompt = `Você é um jornalista brasileiro experiente. Com base no texto abaixo, escreva um resumo completo da notícia em português.
 
@@ -89,6 +97,9 @@ Resumo:`;
   for (const model of MODELS) {
     const summary = await callOpenRouter(key, model, prompt);
     if (summary) {
+      // Cache no CDN do Vercel por 24h — serve todos os dispositivos
+      res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=3600');
+      res.setHeader('Content-Type', 'application/json');
       return res.status(200).json({ summary, source: hasFullText ? 'full' : 'partial', model });
     }
   }

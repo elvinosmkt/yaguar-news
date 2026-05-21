@@ -11,18 +11,15 @@ export function saveSummary(articleId: string, summary: string): void {
 }
 
 async function generateOne(article: NewsArticle, summarizeUrl: string): Promise<void> {
-  if (getSummary(article.id)) return; // já tem — pula
+  if (getSummary(article.id)) return; // já tem no localStorage — pula
   try {
-    const res = await fetch(summarizeUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: article.title,
-        description: article.description,
-        content: article.content,
-        url: article.url,
-      }),
+    const params = new URLSearchParams({
+      url:         article.url,
+      title:       article.title.slice(0, 200),
+      description: article.description.slice(0, 300),
+      content:     article.content.slice(0, 500),
     });
+    const res = await fetch(`${summarizeUrl}?${params}`);
     const data = await res.json();
     if (data.summary) saveSummary(article.id, data.summary);
   } catch { /* falha silenciosa — será gerado on-demand */ }
