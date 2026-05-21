@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { NewsArticle, CATEGORY_LABELS, CATEGORY_COLORS } from './types';
 
 function fmt(iso: string) {
@@ -16,34 +16,84 @@ function sourceDomain(article: NewsArticle): string {
   }
 }
 
-function bestText(article: NewsArticle): { lead: string; extra: string | null } {
-  const desc = (article.description ?? '').trim();
-  const cont = (article.content ?? '').trim();
-  if (cont && desc && cont.startsWith(desc.slice(0, 40))) {
-    return { lead: cont, extra: null };
-  }
-  if (cont && cont !== desc) {
-    return { lead: desc, extra: cont };
-  }
-  return { lead: desc || cont, extra: null };
+// Cache em memória — evita chamar a IA duas vezes para o mesmo artigo
+const summaryCache = new Map<string, string>();
+
+interface Props {
+  article: NewsArticle | null;
+  onClose: () => void;
+  summarizeUrl?: string; // URL do endpoint de resumo. Default: /api/summarize
 }
 
-interface Props { article: NewsArticle | null; onClose: () => void; }
+export function NewsModal({ article, onClose, summarizeUrl = '/api/summarize' }: Props) {
+  const [summary, setSummary] = useState<string | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-export function NewsModal({ article, onClose }: Props) {
+  // Fecha com ESC e trava scroll
   useEffect(() => {
     if (!article) return;
     const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', h);
     document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', h); document.body.style.overflow = ''; };
+    return () => {
+      document.removeEventListener('keydown', h);
+      document.body.style.overflow = '';
+    };
   }, [article, onClose]);
+
+  // Gera resumo ao abrir o modal
+  useEffect(() => {
+    if (!article) { setSummary(null); return; }
+
+    // Já tem no cache — usa direto
+    if (summaryCache.has(article.id)) {
+      setSummary(summaryCache.get(article.id)!);
+      return;
+    }
+
+    // Aborta chamada anterior se usuário trocar de artigo rapidamente
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    setSummary(null);
+    setSummaryError(false);
+    setLoadingSummary(true);
+
+    fetch(summarizeUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        title:       article.title,
+        description: article.description,
+        content:     article.content,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.summary) {
+          summaryCache.set(article.id, data.summary);
+          setSummary(data.summary);
+        } else {
+          setSummaryError(true);
+        }
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') setSummaryError(true);
+      })
+      .finally(() => setLoadingSummary(false));
+
+    return () => ctrl.abort();
+  }, [article?.id]);
 
   if (!article) return null;
 
-  const color = CATEGORY_COLORS[article.category];
-  const { lead, extra } = bestText(article);
-  const domain = sourceDomain(article);
+  const color    = CATEGORY_COLORS[article.category];
+  const domain   = sourceDomain(article);
+  const fallback = [article.description, article.content].filter(Boolean).join('\n\n');
 
   return (
     <div
@@ -54,12 +104,9 @@ export function NewsModal({ article, onClose }: Props) {
       aria-labelledby="yn-modal-title"
     >
       <div className="yn-modal">
-        {/* Drag handle visual (mobile) */}
         <div className="yn-modal__handle" aria-hidden />
-
         <button className="yn-modal__close" onClick={onClose} aria-label="Fechar">✕</button>
 
-        {/* Conteúdo rolável */}
         <div className="yn-modal__body">
           <span className="yn-modal__badge" style={{ background: color }}>
             {CATEGORY_LABELS[article.category]}
@@ -76,16 +123,40 @@ export function NewsModal({ article, onClose }: Props) {
             <span className="yn-modal__date">{fmt(article.publishedAt)}</span>
           </div>
 
-          {lead && (
-            <div className="yn-modal__excerpt-box">
-              <span className="yn-modal__excerpt-label">Trecho do artigo</span>
-              <p className="yn-modal__lead">{lead}</p>
-              {extra && <p className="yn-modal__content">{extra}</p>}
-            </div>
-          )}
+          {/* Resumo IA */}
+          <div className="yn-modal__excerpt-box">
+            {loadingSummary && (
+              <div className="yn-modal__summary-loading">
+                <span className="yn-modal__summary-spinner" aria-hidden>⟳</span>
+                <span>Gerando resumo...</span>
+              </div>
+            )}
+
+            {!loadingSummary && summary && (
+              <>
+                <span className="yn-modal__excerpt-label yn-modal__excerpt-label--ai">
+                  ✦ Resumo gerado por IA
+                </span>
+                <div className="yn-modal__lead yn-modal__lead--ai">
+                  {summary.split('\n').filter(Boolean).map((p, i) => (
+                    <p key={i}>{p}</p>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {!loadingSummary && !summary && (fallback || summaryError) && (
+              <>
+                <span className="yn-modal__excerpt-label">Trecho do artigo</span>
+                <p className="yn-modal__lead">{fallback}</p>
+                {summaryError && (
+                  <p className="yn-modal__summary-err">Resumo indisponível no momento.</p>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
-        {/* CTA fixo na base (especialmente no mobile) */}
         <div className="yn-modal__actions">
           <a
             href={article.url}
