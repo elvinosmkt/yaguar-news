@@ -70,6 +70,7 @@ export function NewsModal({ article, onClose, summarizeUrl = '/api/summarize' }:
         title:       article.title,
         description: article.description,
         content:     article.content,
+        url:         article.url,
       }),
     })
       .then(r => r.json())
