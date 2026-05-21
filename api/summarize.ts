@@ -5,12 +5,23 @@ const CORS = {
   'Content-Type': 'application/json',
 };
 
-// Busca o texto completo do artigo via Jina AI Reader (gratuito, sem chave)
+// Cadeia de modelos — tenta em ordem até um responder sem rate limit
+const MODELS = [
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'deepseek/deepseek-v4-flash:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'google/gemma-4-31b-it:free',
+  'qwen/qwen3-next-80b-a3b-instruct:free',
+  'minimax/minimax-m2.5:free',
+  'openai/gpt-oss-20b:free',
+];
+
+// Busca o texto completo via Jina AI Reader (gratuito, sem chave)
 async function fetchFullText(url: string): Promise<string | null> {
   try {
     const res = await fetch(`https://r.jina.ai/${url}`, {
       headers: {
-        'Accept': 'text/plain',
+        Accept: 'text/plain',
         'X-Return-Format': 'text',
         'User-Agent': 'YaguarNews/1.0',
       },
@@ -18,11 +29,34 @@ async function fetchFullText(url: string): Promise<string | null> {
     });
     if (!res.ok) return null;
     const text = await res.text();
-    // Limita a 4000 chars para não estourar o contexto da IA
     return text.slice(0, 4000).trim() || null;
   } catch {
     return null;
   }
+}
+
+async function callOpenRouter(key: string, model: string, prompt: string): Promise<string | null> {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://yaguar-news.vercel.app',
+      'X-Title': 'Yaguar News',
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 800,
+      temperature: 0.4,
+    }),
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!res.ok) return null; // rate limit ou erro — tenta próximo modelo
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content?.trim() || null;
 }
 
 export default async function handler(request: Request): Promise<Response> {
@@ -49,24 +83,18 @@ export default async function handler(request: Request): Promise<Response> {
     return Response.json({ error: 'Body JSON inválido' }, { status: 400, headers: CORS });
   }
 
-  // Tenta buscar o texto completo do artigo original
+  // Tenta buscar o texto completo — em paralelo com a preparação do fallback
   const fullText = url ? await fetchFullText(url) : null;
 
-  // Monta o texto para a IA — prioriza o artigo completo, cai no trecho da API
-  let articleText: string;
-  let source: 'full' | 'partial';
+  const articleText = (fullText && fullText.length > 300)
+    ? fullText
+    : [
+        title       ? `Título: ${title}`          : '',
+        description ? `Descrição: ${description}` : '',
+        content     ? `Conteúdo: ${content}`       : '',
+      ].filter(Boolean).join('\n\n');
 
-  if (fullText && fullText.length > 300) {
-    articleText = fullText;
-    source = 'full';
-  } else {
-    articleText = [
-      title       ? `Título: ${title}`       : '',
-      description ? `Descrição: ${description}` : '',
-      content     ? `Conteúdo: ${content}`   : '',
-    ].filter(Boolean).join('\n\n');
-    source = 'partial';
-  }
+  const source: 'full' | 'partial' = (fullText && fullText.length > 300) ? 'full' : 'partial';
 
   const prompt = `Você é um jornalista brasileiro experiente. Com base no texto abaixo, escreva um resumo completo da notícia em português.
 
@@ -76,40 +104,27 @@ Regras:
 - Inclua contexto, causas e impacto quando disponível no texto
 - Linguagem clara e direta, sem rebuscamento
 - Não invente dados que não estejam no texto original
-- Não use frases como "com base no texto" ou "o artigo diz" — escreva como notícia
+- Não use frases como "com base no texto" — escreva como notícia
 
 Texto da notícia:
 ${articleText}
 
 Resumo:`;
 
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://yaguar-news.vercel.app',
-        'X-Title': 'Yaguar News',
-      },
-      body: JSON.stringify({
-        model: 'deepseek/deepseek-v4-flash:free',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 800,
-        temperature: 0.4,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      return Response.json({ error: `OpenRouter erro ${res.status}: ${err}` }, { status: 502, headers: CORS });
+  // Tenta cada modelo da lista até um funcionar
+  for (const model of MODELS) {
+    try {
+      const summary = await callOpenRouter(key, model, prompt);
+      if (summary) {
+        return Response.json({ summary, source, model }, { headers: CORS });
+      }
+    } catch {
+      // timeout ou erro de rede — tenta o próximo
     }
-
-    const data = await res.json();
-    const summary = data.choices?.[0]?.message?.content?.trim() ?? '';
-
-    return Response.json({ summary, source }, { headers: CORS });
-  } catch (e) {
-    return Response.json({ error: String(e) }, { status: 500, headers: CORS });
   }
+
+  return Response.json(
+    { error: 'Todos os modelos indisponíveis no momento. Tente novamente em instantes.' },
+    { status: 503, headers: CORS }
+  );
 }
